@@ -1,0 +1,357 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Spelling Bee</title>
+<style>
+  :root {
+    --bg: #fff8e1; --card: #ffffff; --ink: #3e2723; --muted: #8d6e63;
+    --accent: #ffb300; --accent-dark: #ff8f00; --good: #2e7d32; --good-bg: #e8f5e9;
+    --bad: #c62828; --bad-bg: #ffebee;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; min-height: 100vh; display: flex; align-items: center; justify-content: center;
+    background: var(--bg); color: var(--ink);
+    font-family: "Comic Sans MS", "Chalkboard SE", "Segoe UI", system-ui, sans-serif;
+    padding: 16px;
+  }
+  .card {
+    width: 100%; max-width: 560px; background: var(--card); border-radius: 24px;
+    box-shadow: 0 10px 30px rgba(0,0,0,.12); padding: 28px; text-align: center;
+  }
+  h1 { margin: 0 0 4px; font-size: 2rem; }
+  .sub { color: var(--muted); margin: 0 0 20px; }
+  .stats { display: flex; justify-content: space-around; margin-bottom: 20px; font-size: 1rem; color: var(--muted); }
+  .stats b { display: block; font-size: 1.6rem; color: var(--ink); }
+  button {
+    font: inherit; font-size: 1.15rem; border: none; border-radius: 14px; padding: 14px 22px;
+    cursor: pointer; background: var(--accent); color: var(--ink); font-weight: bold;
+    transition: transform .08s, background .2s, opacity .2s;
+  }
+  button:hover:not(:disabled) { background: var(--accent-dark); }
+  button:active:not(:disabled) { transform: scale(.96); }
+  button:disabled { opacity: .35; cursor: not-allowed; }
+  button.secondary { background: #ffe082; }
+  button.next { background: var(--good); color: #fff; }
+  button.next:hover:not(:disabled) { background: #1b5e20; }
+  .row { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; margin: 14px 0; }
+  input {
+    width: 100%; font: inherit; font-size: 1.8rem; text-align: center; letter-spacing: 2px;
+    padding: 14px; border: 3px solid #ffe082; border-radius: 16px; outline: none;
+    transition: border-color .2s, background .2s;
+  }
+  input:focus { border-color: var(--accent); }
+  input.good { border-color: var(--good); background: var(--good-bg); }
+  input.bad { border-color: var(--bad); background: var(--bad-bg); }
+  .shake { animation: shake .45s; }
+  @keyframes shake {
+    0%,100% { transform: translateX(0); }
+    20%,60% { transform: translateX(-10px); }
+    40%,80% { transform: translateX(10px); }
+  }
+  .msg { min-height: 2.2em; font-size: 1.4rem; font-weight: bold; margin: 10px 0 0; }
+  .msg.good { color: var(--good); }
+  .msg.bad { color: var(--bad); }
+  .answer { font-size: 1.3rem; color: var(--muted); min-height: 1.5em; }
+  .hidden { display: none; }
+  .big { font-size: 1.5rem; padding: 18px 36px; }
+  button { touch-action: manipulation; -webkit-tap-highlight-color: transparent; }
+  .voice { display: flex; gap: 8px; align-items: center; justify-content: center; margin-bottom: 18px; }
+  .voice label { color: var(--muted); }
+  .voice select {
+    flex: 1; min-width: 0; font: inherit; font-size: 1rem; padding: 10px;
+    border: 2px solid #ffe082; border-radius: 12px; background: #fff; color: var(--ink);
+  }
+  .voice button { padding: 10px 14px; font-size: 1rem; }
+
+  /* ---- Phone ---- */
+  @media (max-width: 520px) {
+    body { align-items: flex-start; padding: 12px; min-height: 100dvh; }
+    .card { padding: 18px 16px; border-radius: 20px; }
+    h1 { font-size: 1.6rem; }
+    .sub { margin-bottom: 12px; font-size: .95rem; }
+    .stats { margin-bottom: 10px; }
+    .stats b { font-size: 1.3rem; }
+    .row { gap: 10px; margin: 10px 0; }
+    .row button { flex: 1 1 0; padding: 16px 8px; font-size: 1.05rem; min-height: 56px; }
+    #revealBtn { flex-basis: 100%; }
+    input { font-size: 1.6rem; padding: 12px; }
+    .msg { font-size: 1.2rem; margin-top: 4px; }
+    .big { width: 100%; }
+  }
+</style>
+</head>
+<body>
+<main class="card">
+  <h1>🐝 Spelling Bee</h1>
+  <p class="sub">Listen to the word, then type how it is spelled.</p>
+
+  <section id="startScreen">
+    <div class="voice">
+      <label for="voiceSel">Voice</label>
+      <select id="voiceSel"></select>
+      <button id="testVoiceBtn" class="secondary">▶ Test</button>
+    </div>
+    <button id="startBtn" class="big">Start</button>
+  </section>
+
+  <section id="gameScreen" class="hidden">
+    <div class="stats">
+      <div><b id="wordNum">0</b>Word</div>
+      <div><b id="scoreNum">0</b>Correct</div>
+      <div><b id="leftNum">0</b>Left</div>
+    </div>
+
+    <div class="row">
+      <button id="repeatBtn" class="secondary">🔊 Say it again</button>
+      <button id="slowBtn" class="secondary">🐢 Say it slowly</button>
+    </div>
+
+    <input id="answer" type="text" autocomplete="off" autocorrect="off"
+           autocapitalize="none" spellcheck="false" enterkeyhint="go"
+           placeholder="Type here…" aria-label="Your spelling">
+
+    <div class="row">
+      <button id="checkBtn">✔ Check</button>
+      <button id="nextBtn" class="next" disabled>Next ➜</button>
+    </div>
+    <div class="row">
+      <button id="revealBtn" class="secondary hidden">👀 Show me the spelling</button>
+    </div>
+
+    <p id="msg" class="msg"></p>
+    <p id="reveal" class="answer"></p>
+  </section>
+
+  <section id="doneScreen" class="hidden">
+    <p class="msg good">🎉 All done!</p>
+    <p id="finalScore" class="answer"></p>
+    <button id="againBtn" class="big">Play again</button>
+  </section>
+</main>
+
+<script>
+// ====== WORD LIST — edit freely ======
+const WORDS = [
+  "because", "friend", "beautiful", "neighbor", "library", "February", "Wednesday",
+  "different", "favorite", "separate", "necessary", "remember", "tomorrow", "surprise",
+  "chocolate", "elephant", "dinosaur", "butterfly", "giraffe", "penguin", "squirrel",
+  "mountain", "island", "ocean", "weather", "rhythm", "science", "language",
+  "calendar", "address", "answer", "believe", "bicycle", "breakfast", "build",
+  "busy", "certain", "climb", "cousin", "decide", "doctor", "enough", "exercise",
+  "famous", "finally", "fruit", "guess", "guitar", "happened", "heard",
+  "height", "imagine", "important", "interesting", "knowledge", "laugh", "minute",
+  "museum", "musical", "nephew", "niece", "ninety", "often", "opposite",
+  "orchestra", "pencil", "people", "piece", "pizza", "pleasant", "probably",
+  "question", "quiet", "receive", "restaurant", "sandwich", "scissors", "special",
+  "straight", "strength", "sugar", "thought", "through", "together", "treasure",
+  "unusual", "vegetable", "village", "whistle", "wonderful", "yesterday", "zebra"
+];
+// After this many wrong tries, a "Show me the spelling" button appears.
+const TRIES_BEFORE_REVEAL = 3;
+// =====================================
+
+const $ = (id) => document.getElementById(id);
+const els = {
+  start: $("startScreen"), game: $("gameScreen"), done: $("doneScreen"),
+  input: $("answer"), msg: $("msg"), reveal: $("reveal"),
+  next: $("nextBtn"), check: $("checkBtn"), revealBtn: $("revealBtn"),
+  wordNum: $("wordNum"), scoreNum: $("scoreNum"), leftNum: $("leftNum"),
+  finalScore: $("finalScore"),
+};
+
+let queue = [];
+let current = "";
+let wordIndex = 0;
+let score = 0;
+let wrongTries = 0;
+let solved = false;
+
+// ---------- Speech ----------
+// Built-in voices (localService) are preferred: online voices such as
+// "Google US English" can click at the end of each word.
+const NOVELTY = /bad news|bahh|bells|boing|bubbles|cellos|good news|jester|organ|superstar|trinoids|whisper|wobble|zarvox|albert|fred|junior|ralph|kathy|grandma|grandpa|rocko|shelley|eddy|flo|reed|sandy/i;
+const VOICE_KEY = "spellingBeeVoice";
+const voiceSel = document.getElementById("voiceSel");
+let voice = null;
+
+function savedVoiceName() {
+  try { return localStorage.getItem(VOICE_KEY); } catch (e) { return null; }
+}
+function saveVoiceName(name) {
+  try { localStorage.setItem(VOICE_KEY, name); } catch (e) { /* not available — fine */ }
+}
+
+function englishVoices() {
+  return speechSynthesis.getVoices().filter(v => /^en/i.test(v.lang) && !NOVELTY.test(v.name));
+}
+
+function pickVoice() {
+  const list = englishVoices();
+  const local = list.filter(v => v.localService);
+  const us = (v) => /en[-_]US/i.test(v.lang);
+  voice = list.find(v => v.name === savedVoiceName())
+       || local.find(v => us(v) && /samantha|aria|jenny/i.test(v.name))
+       || local.find(us) || local[0] || list[0] || null;
+  voiceSel.innerHTML = "";
+  list.forEach(v => voiceSel.add(new Option(`${v.name} (${v.lang})${v.localService ? "" : " – online"}`, v.name)));
+  if (voice) voiceSel.value = voice.name;
+}
+
+if ("speechSynthesis" in window) {
+  pickVoice();
+  speechSynthesis.onvoiceschanged = pickVoice;
+}
+voiceSel.onchange = () => {
+  voice = englishVoices().find(v => v.name === voiceSel.value) || voice;
+  saveVoiceName(voiceSel.value);
+  say("beautiful");
+};
+
+function say(text, rate = 0.85) {
+  if (!("speechSynthesis" in window)) return;
+  if (speechSynthesis.speaking || speechSynthesis.pending) speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(text);
+  if (voice) u.voice = voice;
+  u.lang = voice ? voice.lang : "en-US";
+  u.rate = rate;
+  speechSynthesis.speak(u);
+}
+
+// ---------- Sound effects (Web Audio) ----------
+let audioCtx = null;
+function tone(freq, start, dur, type = "sine", vol = 0.25) {
+  audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+  const t0 = audioCtx.currentTime + start;
+  const osc = audioCtx.createOscillator();
+  const gain = audioCtx.createGain();
+  osc.type = type;
+  osc.frequency.value = freq;
+  gain.gain.setValueAtTime(vol, t0);
+  gain.gain.exponentialRampToValueAtTime(0.001, t0 + dur);
+  osc.connect(gain).connect(audioCtx.destination);
+  osc.start(t0);
+  osc.stop(t0 + dur);
+}
+const playGood = () => { tone(523, 0, .15); tone(659, .12, .15); tone(784, .24, .3); };
+const playBad  = () => { tone(220, 0, .25, "square", .15); tone(160, .22, .4, "square", .15); };
+
+// ---------- Game ----------
+function shuffle(arr) {
+  const a = arr.slice();
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
+function show(screen) {
+  [els.start, els.game, els.done].forEach(s => s.classList.add("hidden"));
+  screen.classList.remove("hidden");
+}
+
+function startGame() {
+  // Unlock sound on phones: the audio context must be created/resumed inside a tap.
+  audioCtx = audioCtx || new (window.AudioContext || window.webkitAudioContext)();
+  audioCtx.resume();
+  queue = shuffle(WORDS);
+  wordIndex = 0;
+  score = 0;
+  show(els.game);
+  nextWord();
+}
+
+function nextWord() {
+  if (queue.length === 0) return finish();
+  current = queue.pop();
+  wordIndex++;
+  wrongTries = 0;
+  solved = false;
+  els.input.value = "";
+  els.input.className = "";
+  els.input.disabled = false;
+  els.msg.textContent = "";
+  els.msg.className = "msg";
+  els.reveal.textContent = "";
+  els.revealBtn.classList.add("hidden");
+  els.next.disabled = true;
+  els.check.disabled = false;
+  updateStats();
+  els.input.focus();
+  say(current);   // spoken right inside the tap — phones block speech started later
+}
+
+function updateStats() {
+  els.wordNum.textContent = wordIndex;
+  els.scoreNum.textContent = score;
+  els.leftNum.textContent = queue.length;
+}
+
+function check() {
+  if (solved) return;
+  const typed = els.input.value.trim();
+  if (!typed) { els.input.focus(); return; }
+
+  if (typed.toLowerCase() === current.toLowerCase()) {
+    solved = true;
+    if (wrongTries === 0) score++;
+    updateStats();
+    els.input.className = "good";
+    els.input.disabled = true;
+    els.msg.textContent = "✅ Correct! Great job!";
+    els.msg.className = "msg good";
+    els.next.disabled = false;
+    els.check.disabled = true;
+    els.revealBtn.classList.add("hidden");
+    playGood();
+    setTimeout(() => say("Correct! Great job!", 1), 500);
+    els.next.focus();
+  } else {
+    wrongTries++;
+    els.input.className = "bad";
+    void els.input.offsetWidth;           // restart the shake animation
+    els.input.classList.add("shake");
+    els.msg.textContent = "❌ Not quite — try again!";
+    els.msg.className = "msg bad";
+    if (wrongTries >= TRIES_BEFORE_REVEAL) els.revealBtn.classList.remove("hidden");
+    playBad();
+    setTimeout(() => say("Oops, try again. " + current, 0.9), 700);
+    els.input.select();
+  }
+}
+
+function reveal() {
+  els.reveal.textContent = current.split("").join(" - ");
+  say(current + ". " + current.split("").join(", "), 0.75);
+  els.input.focus();
+}
+
+function finish() {
+  show(els.done);
+  els.finalScore.textContent = `You spelled ${score} of ${WORDS.length} words right on the first try!`;
+  say(`All done! You got ${score} out of ${WORDS.length} on the first try. Well done!`, 0.95);
+}
+
+// ---------- Wiring ----------
+$("startBtn").onclick = startGame;
+$("testVoiceBtn").onclick = () => say("Spell the word: beautiful.");
+$("againBtn").onclick = startGame;
+$("repeatBtn").onclick = () => { say(current); els.input.focus(); };
+$("slowBtn").onclick = () => { say(current, 0.5); els.input.focus(); };
+els.check.onclick = check;
+els.next.onclick = nextWord;
+els.revealBtn.onclick = reveal;
+els.input.addEventListener("input", () => {
+  if (!solved) { els.input.className = ""; els.msg.textContent = ""; }
+});
+document.addEventListener("keydown", (e) => {
+  if (e.key !== "Enter" || els.game.classList.contains("hidden")) return;
+  e.preventDefault();
+  if (solved) nextWord(); else check();
+});
+</script>
+</body>
+</html>
